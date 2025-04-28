@@ -1,73 +1,89 @@
-# Welcome to your Lovable project
+# Capstone Project Frontend
 
-## Project info
+A modern React frontend application built with Vite, TypeScript, and Tailwind CSS.
 
-**URL**: https://lovable.dev/projects/41f6f63a-a071-457e-acbc-ea1b770b5c0d
+## Tech Stack
 
-## How can I edit this code?
+- **Framework:** [React](https://reactjs.org/)
+- **Build Tool:** [Vite](https://vitejs.dev/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components:** [shadcn/ui](https://ui.shadcn.com/)
+- **Form Handling:** [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)
+- **Routing:** [React Router DOM](https://reactrouter.com/)
+- **API Client:** [Axios](https://axios-http.com/) + [TanStack Query](https://tanstack.com/query)
+- **Date Handling:** [date-fns](https://date-fns.org/)
+- **Charts:** [Recharts](https://recharts.org/)
+- **Icons:** [Lucide React](https://lucide.dev/guide/packages/lucide-react)
 
-There are several ways of editing your application.
+## Getting Started
 
-**Use Lovable**
+### Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/41f6f63a-a071-457e-acbc-ea1b770b5c0d) and start prompting.
+- Node.js (v18 or higher)
+- npm or yarn or bun
 
-Changes made via Lovable will be committed automatically to this repo.
+### Installation
 
-**Use your preferred IDE**
+1. Clone the repository
+   ```bash
+   git clone <repository-url>
+   cd CapstoneProject/Frontend
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. Install dependencies
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   bun install
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+3. Start the development server
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   bun dev
+   ```
 
-Follow these steps:
+4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Scripts
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- `npm run dev` - Start the development server
+- `npm run build` - Build for production
+- `npm run build:dev` - Build for development
+- `npm run lint` - Run ESLint
+- `npm run preview` - Preview the production build
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Project Structure
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+Frontend/
+├── public/          # Static assets
+├── src/
+│   ├── components/  # UI components
+│   ├── hooks/       # Custom React hooks
+│   ├── lib/         # Utility functions and configurations
+│   ├── pages/       # Page components
+│   ├── types/       # TypeScript type definitions
+│   ├── App.tsx      # Main application component
+│   ├── main.tsx     # Application entry point
+│   └── index.css    # Global styles
+├── .env             # Environment variables
+└── ...config files  # Various configuration files
 ```
 
-**Edit a file directly in GitHub**
+## Contributing
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Create a feature branch (`git checkout -b feature/amazing-feature`)
+2. Commit your changes (`git commit -m 'Add some amazing feature'`)
+3. Push to the branch (`git push origin feature/amazing-feature`)
+4. Open a Pull Request
 
-**Use GitHub Codespaces**
+## License
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/41f6f63a-a071-457e-acbc-ea1b770b5c0d) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+[Include license information here]
