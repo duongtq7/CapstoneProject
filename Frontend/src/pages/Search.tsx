@@ -1,17 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import MediaGrid from "../components/MediaGrid";  // Grid component for displaying media
-import { Search as SearchIcon } from "lucide-react";
+import { Search as SearchIcon, Globe } from "lucide-react";
 import { MediaItem } from "../types";
 import { searchAPI } from "../lib/api";
 import { useToast } from "@/components/ui/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const Search = () => {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<MediaItem[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [translateEnabled, setTranslateEnabled] = useState(true);
   const { toast } = useToast();
+  
+  // Log any API configuration issues on component mount
+  useEffect(() => {
+    console.log("Search component mounted");
+    console.log("API Base URL:", import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1');
+  }, []);
   
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,37 +29,59 @@ const Search = () => {
     
     setIsSearching(true);
     setHasSearched(true);
+    setDebugInfo(null);
     
     try {
-      console.log(`Executing search for query: "${query}"`);
+      console.log(`[Search] Starting search for query: "${query}"`);
+      console.log(`[Search] Current time: ${new Date().toISOString()}`);
+      console.log(`[Search] Translation enabled: ${translateEnabled}`);
       
-      // Call the search API
-      const response = await searchAPI.searchMedia(query);
+      // Call the search API with translation parameter
+      const response = await searchAPI.searchMedia(query, 10, translateEnabled);
       
-      console.log(`Search complete, received ${response.results.length} results`);
+      console.log(`[Search] API response:`, response);
+      console.log(`[Search] Found ${response.results.length} results`);
+      
+      // Store debug info if available
+      if (response.debug_info) {
+        console.log(`[Search] Debug info:`, response.debug_info);
+        setDebugInfo(response.debug_info);
+      }
       
       // Log the first result for debugging
       if (response.results.length > 0) {
-        console.log("Sample result:", response.results[0]);
+        console.log("[Search] Sample result:", response.results[0]);
       }
       
       setResults(response.results);
       
       if (response.count === 0) {
-        console.log("No search results found");
+        console.log("[Search] No results found");
         toast({
           title: "No results found",
           description: "Try a different search term or upload more media.",
           variant: "default",
         });
       } else {
-        console.log(`Found ${response.count} results for "${query}"`);
+        console.log(`[Search] Successfully found ${response.count} results for "${query}"`);
       }
-    } catch (error) {
-      console.error("Search error:", error);
+    } catch (error: any) {
+      console.error("[Search] Error during search:", error);
+      
+      // Log detailed error information
+      if (error.response) {
+        console.error("[Search] Response status:", error.response.status);
+        console.error("[Search] Response headers:", error.response.headers);
+        console.error("[Search] Response data:", error.response.data);
+        console.error("[Search] Request URL:", error.config?.url);
+        console.error("[Search] Request method:", error.config?.method);
+        console.error("[Search] Request params:", error.config?.params);
+        console.error("[Search] Request base URL:", error.config?.baseURL);
+      }
+      
       toast({
         title: "Search failed",
-        description: "There was a problem with your search. Please try again.",
+        description: error.response?.data?.detail || "There was a problem with your search. Please try again.",
         variant: "destructive",
       });
       setResults([]);

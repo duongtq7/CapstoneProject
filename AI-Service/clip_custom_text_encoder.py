@@ -11,11 +11,11 @@ from transformers import CLIPModel, CLIPProcessor
 logger = logging.getLogger("ray.serve")
 os.environ['HF_HOME'] = './models'
 
-MODEL_PATH = "/home/duongtq/capstone/Demo/Sample/AI-Services/models/clip_pretrain/clip_vi_best.pt"
+MODEL_PATH = "/home/duongtq/capstone/CapstoneProject/AI-Service/models/clip_pretrain/clip_vi_best.pt"
 # Base CLIP model to load the state dict into
 BASE_MODEL_ID = "openai/clip-vit-base-patch32"
 
-@serve.deployment(ray_actor_options={"num_gpus": 0.1},
+@serve.deployment(
                   autoscaling_config=AutoscalingConfig(
                       min_replicas=1,
                       max_replicas=10,
@@ -24,7 +24,8 @@ class ClipCustomTextEncoder:
     def __init__(self):
         try:
             logger.info(f"Loading custom CLIP model from {MODEL_PATH}")
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            # Force CPU usage
+            self.device = torch.device('cpu')
             
             # Load the checkpoint file
             checkpoint = torch.load(MODEL_PATH, map_location=self.device)
@@ -43,7 +44,7 @@ class ClipCustomTextEncoder:
             # Load compatible weights
             self.model.load_state_dict(model_state_dict, strict=False)
             
-            # Move model to device
+            # Ensure model is on CPU
             self.model.to(self.device)
             
             # Put model in evaluation mode
@@ -52,7 +53,7 @@ class ClipCustomTextEncoder:
             # Initialize processor
             self.processor = CLIPProcessor.from_pretrained(BASE_MODEL_ID)
             
-            logger.info("Custom CLIP model loaded successfully")
+            logger.info("Custom CLIP model loaded successfully on CPU")
             
         except Exception as e:
             logger.error(f"Error loading model: {str(e)}")
@@ -60,7 +61,7 @@ class ClipCustomTextEncoder:
 
     async def __call__(self, http_request: Request):
         try:
-            logger.info("Starting text encoding with custom CLIP model")
+            logger.info("Starting text encoding with custom CLIP model on CPU")
             
             data = await http_request.json()
             if not data or 'text' not in data:

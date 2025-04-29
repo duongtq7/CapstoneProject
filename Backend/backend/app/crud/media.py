@@ -1,8 +1,14 @@
 import uuid
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.models.media import Media, MediaCreate, MediaUpdate
+
+
+def get_media_count_by_user(db: Session, user_id: uuid.UUID) -> int:
+    """Get the count of media items for a specific user."""
+    statement = select(func.count()).select_from(Media).join(Media.album).where(Media.album.has(user_id=user_id))
+    return db.exec(statement).one()
 
 
 def create_media(db: Session, *, obj_in: MediaCreate) -> Media:

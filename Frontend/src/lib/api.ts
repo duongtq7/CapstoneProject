@@ -253,14 +253,33 @@ export const mediaAPI = {
 
 // Search API
 export const searchAPI = {
-  searchMedia: async (query: string, limit: number = 5) => {
+  searchMedia: async (query: string, limit: number = 10, translate: boolean = true) => {
     try {
-      console.log(`Searching for media with query: "${query}", limit: ${limit}`);
-      const response = await api.get('/search/', { 
+      console.log(`Searching for media with query: "${query}", limit: ${limit}, translate: ${translate}`);
+      console.log('API URL being used:', API_URL);
+      
+      // Try a direct axios call instead of using the api instance
+      // this is to bypass any configuration issues
+      const fullUrl = `${API_URL}/search/`;
+      console.log('Making direct request to:', fullUrl);
+      
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+      
+      console.log('Using headers:', headers);
+      
+      const response = await axios.get(fullUrl, { 
         params: { 
           query, 
-          limit 
-        } 
+          limit,
+          translate,
+          debug: true
+        },
+        headers,
+        timeout: 10000
       });
       
       // Log the raw response data for debugging
@@ -289,7 +308,8 @@ export const searchAPI = {
           presigned_url: media.presigned_url,
           uploadDate: media.created_at || new Date().toISOString(),
           userId: media.user_id || 'unknown',
-          score: item.score || 0.0
+          score: item.score || 0.0,
+          metadata: item.metadata || {}
         };
       }).filter(Boolean); // Remove any null entries
       
@@ -297,10 +317,30 @@ export const searchAPI = {
       
       return {
         results: mappedResults,
-        count: mappedResults.length
+        count: mappedResults.length,
+        debug_info: response.data.debug_info || {}
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error searching for media with query "${query}":`, error);
+      
+      // Log detailed error information
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response headers:', error.response.headers);
+        console.error('Response data:', error.response.data);
+        console.error('Request URL:', error.config?.url);
+        console.error('Request base URL:', error.config?.baseURL);
+        console.error('Request method:', error.config?.method);
+        console.error('Request params:', error.config?.params);
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('No response received:', error.request);
+        console.error('Request config:', error.config);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error setting up request:', error.message);
+      }
+      
       throw error;
     }
   }

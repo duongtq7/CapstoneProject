@@ -13,7 +13,7 @@ from transformers import CLIPModel, CLIPProcessor
 logger = logging.getLogger("ray.serve")
 os.environ['HF_HOME'] = './models'
 
-MODEL_PATH = "/home/duongtq/capstone/Demo/Sample/AI-Services/models/clip_pretrain/clip_vi_best.pt"
+MODEL_PATH = "/home/duongtq/capstone/CapstoneProject/AI-Service/models/clip_pretrain/clip_vi_best.pt"
 # Base CLIP model to load the state dict into
 BASE_MODEL_ID = "openai/clip-vit-base-patch32"
 

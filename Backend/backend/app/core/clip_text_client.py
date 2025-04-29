@@ -68,6 +68,7 @@ class ClipTextClient:
                     # Try to parse the JSON response
                     try:
                         embedding_data = response.json()
+                        logger.info(f"Received embedding data: {type(embedding_data)}")
                     except Exception as e:
                         logger.error(f"Failed to parse JSON response: {str(e)}")
                         logger.error(f"Response content: {response.text[:200]}...")

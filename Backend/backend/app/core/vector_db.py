@@ -85,25 +85,86 @@ class QdrantManager:
         filter_params: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Search for similar vectors in the specified collection."""
-        try:
-            results = self.client.search(
-                collection_name=collection_name,
-                query_vector=query_vector,
-                limit=limit,
-                score_threshold=score_threshold,
-                query_filter=filter_params,
-            )
-            return [
-                {
-                    "id": str(result.id),
-                    "score": result.score,
-                    "payload": result.payload,
-                }
-                for result in results
-            ]
-        except Exception as e:
-            print(f"Error searching for similar vectors: {e}")
+        # Verify collection exists
+        if not self.check_collection_exists(collection_name):
+            print(f"Collection '{collection_name}' does not exist")
             return []
+        
+        # Format the filter parameters correctly for Qdrant
+        formatted_filter = None
+        if filter_params:
+            # Create a properly formatted filter for Qdrant
+            # Instead of nested payload structure, create a filter with conditions
+            formatted_filter = {
+                "must": []
+            }
+            
+            for key, value in filter_params.items():
+                if key and value:
+                    # Add a match condition for each key-value pair
+                    formatted_filter["must"].append({
+                        "key": key,
+                        "match": {
+                            "value": value
+                        }
+                    })
+        
+        # Log search parameters
+        print(f"Searching collection '{collection_name}' with:")
+        print(f"- Query vector dimensions: {len(query_vector)}")
+        print(f"- Limit: {limit}")
+        print(f"- Score threshold: {score_threshold}")
+        print(f"- Raw filter params: {filter_params}")
+        print(f"- Formatted filter: {formatted_filter}")
+        
+        # Try different filter formats if needed
+        filter_attempts = [
+            formatted_filter,  # First try with our formatted filter
+            None,              # Then try with no filter as backup
+        ]
+        
+        for attempt_num, current_filter in enumerate(filter_attempts):
+            try:
+                print(f"Attempt #{attempt_num+1} with filter: {current_filter}")
+                
+                # Perform the search
+                results = self.client.search(
+                    collection_name=collection_name,
+                    query_vector=query_vector,
+                    limit=limit,
+                    score_threshold=score_threshold,
+                    query_filter=current_filter,
+                )
+                
+                # Log results
+                print(f"Found {len(results)} results in attempt #{attempt_num+1}")
+                for i, result in enumerate(results):
+                    print(f"Result {i+1}:")
+                    print(f"- ID: {result.id}")
+                    print(f"- Score: {result.score}")
+                    print(f"- Payload: {result.payload}")
+                
+                return [
+                    {
+                        "id": str(result.id),
+                        "score": result.score,
+                        "payload": result.payload,
+                    }
+                    for result in results
+                ]
+                
+            except Exception as e:
+                print(f"Error in search attempt #{attempt_num+1}: {e}")
+                if attempt_num < len(filter_attempts) - 1:
+                    print("Trying next filter format...")
+                else:
+                    print("All filter formats failed.")
+                    import traceback
+                    print(f"Full error traceback from last attempt: {traceback.format_exc()}")
+                    return []
+        
+        # Should not reach here, but just in case
+        return []
 
     def delete_point(self, collection_name: str, point_id: str) -> bool:
         """Delete a point from the specified collection."""

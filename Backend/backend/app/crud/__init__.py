@@ -11,6 +11,7 @@ from app.crud.media import (
     get_media,
     get_media_by_album,
     update_media,
+    get_media_count_by_user,
 )
 from app.crud.media_embedding import (
     create_media_embedding,
@@ -45,6 +46,7 @@ __all__ = [
     "get_media",
     "get_media_by_album",
     "update_media",
+    "get_media_count_by_user",
     # Media embedding operations
     "create_media_embedding",
     "delete_media_embedding",
