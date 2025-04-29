@@ -26,6 +26,35 @@ logging_config:
 
 applications:
 
+- name: clip_image_encoder
+
+  route_prefix: /clip_image_encoder
+
+  import_path: clip_image_model:app
+
+  runtime_env: {}
+
+  deployments:
+
+  - name: ClipOriginal
+    autoscaling_config:
+      min_replicas: 1
+      initial_replicas: null
+      max_replicas: 10
+      target_ongoing_requests: 2
+      metrics_interval_s: 10.0
+      look_back_period_s: 30.0
+      smoothing_factor: 1.0
+      upscale_smoothing_factor: null
+      downscale_smoothing_factor: null
+      upscaling_factor: null
+      downscaling_factor: null
+      downscale_delay_s: 600.0
+      upscale_delay_s: 30.0
+    ray_actor_options:
+      num_cpus: 1.0
+      num_gpus: 0.1
+
 - name: clip_text_encoder
 
   route_prefix: /clip_text_encoder
@@ -55,17 +84,17 @@ applications:
       num_cpus: 1.0
       num_gpus: 0.1
 
-- name: clip_image_encoder
+- name: vi2en
 
-  route_prefix: /clip_image_encoder
+  route_prefix: /vi2en
 
-  import_path: clip_image_model:app
+  import_path: translate_model:app
 
   runtime_env: {}
 
   deployments:
 
-  - name: ClipOriginal
+  - name: VietnameseToEnglishTranslator
     autoscaling_config:
       min_replicas: 1
       initial_replicas: null
@@ -81,5 +110,5 @@ applications:
       downscale_delay_s: 600.0
       upscale_delay_s: 30.0
     ray_actor_options:
-      num_cpus: 1.0
+      num_cpus: 0.2
       num_gpus: 0.1
