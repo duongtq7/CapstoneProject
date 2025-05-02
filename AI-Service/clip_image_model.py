@@ -18,7 +18,7 @@ logger = logging.getLogger("ray.serve")
 os.environ['HF_HOME'] = './models'
 
 
-@serve.deployment(ray_actor_options={"num_gpus": 0.1},
+@serve.deployment(ray_actor_options={"num_gpus": 1.0},
                   autoscaling_config=AutoscalingConfig(
                       min_replicas=1,
                       max_replicas=10,
