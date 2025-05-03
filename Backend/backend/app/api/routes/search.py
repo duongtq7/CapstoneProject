@@ -143,16 +143,56 @@ async def search_media(
         
         search_start_time = time.time()
         
-        # Search Qdrant using the text embedding
-        logger.info("Calling Qdrant search...")
+        # Search Qdrant using the text embedding in both collections
+        logger.info("Calling Qdrant search on image and video collections...")
+        image_results = []
+        video_results = []
+        
         try:
-            search_results = qdrant_manager.search_similar(
+            # Search in image embeddings collection
+            logger.info("Searching in image_embeddings collection...")
+            image_results = qdrant_manager.search_similar(
                 collection_name="image_embeddings",
                 query_vector=text_embedding,
                 limit=limit,
                 score_threshold=score_threshold,
                 filter_params=filter_params,
             )
+            
+            # Add collection info to each image result
+            for result in image_results:
+                if "payload" in result:
+                    result["payload"]["collection"] = "image_embeddings"
+                    
+            logger.info(f"Found {len(image_results)} results in image_embeddings collection")
+            
+            # Search in video embeddings collection
+            logger.info("Searching in video_embeddings collection...")
+            video_results = qdrant_manager.search_similar(
+                collection_name="video_embeddings",
+                query_vector=text_embedding,
+                limit=limit,
+                score_threshold=score_threshold,
+                filter_params=filter_params,
+            )
+            
+            # Add collection info to each video result
+            for result in video_results:
+                if "payload" in result:
+                    result["payload"]["collection"] = "video_embeddings"
+                    
+            logger.info(f"Found {len(video_results)} results in video_embeddings collection")
+            
+            # Combine results from both collections
+            search_results = image_results + video_results
+            
+            # Sort combined results by score (highest first)
+            search_results.sort(key=lambda x: x.get('score', 0), reverse=True)
+            
+            # Limit to the requested number if needed
+            if len(search_results) > limit:
+                search_results = search_results[:limit]
+                
         except Exception as e:
             error_msg = f"Error searching Qdrant: {str(e)}"
             logger.error(error_msg)
@@ -168,8 +208,10 @@ async def search_media(
         
         if debug:
             debug_info["search_time"] = search_time
+            debug_info["image_results_count"] = len(image_results)
+            debug_info["video_results_count"] = len(video_results)
         
-        logger.info(f"Qdrant search returned {len(search_results)} results")
+        logger.info(f"Combined Qdrant search returned {len(search_results)} results")
         
         if not search_results:
             logger.info("No search results found in Qdrant")
@@ -223,10 +265,16 @@ async def search_media(
                     SearchResult(
                         media=media_response,
                         score=result.get("score", 0.0),
-                        metadata=result.get("payload", {})
+                        metadata={
+                            **result.get("payload", {}),
+                            # Use the collection from the payload or infer it based on is_keyframe flag
+                            "collection": result.get("payload", {}).get("collection", 
+                                         "video_embeddings" if result.get("payload", {}).get("is_keyframe", False) else "image_embeddings")
+                        }
                     )
                 )
-                logger.info(f"Added media {media_id} to results with score {result.get('score', 0.0)}")
+                # Log more details including the collection
+                logger.info(f"Added media {media_id} to results with score {result.get('score', 0.0)} from collection {result.get('payload', {}).get('collection', 'unknown')}")
             except Exception as e:
                 logger.error(f"Error processing search result: {str(e)}")
                 continue
@@ -243,6 +291,8 @@ async def search_media(
                 "filter_params": filter_params,
                 "raw_results_count": len(search_results),
                 "processed_results_count": len(results),
+                "image_results_count": len(image_results),
+                "video_results_count": len(video_results),
                 "user_media_count": user_media_count if 'user_media_count' in locals() else None
             })
         

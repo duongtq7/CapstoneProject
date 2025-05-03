@@ -102,6 +102,7 @@ async def upload_media(
                         "media_id": str(media.id),
                         "user_id": str(current_user.id),
                         "album_id": str(album_id),
+                        "collection": "image_embeddings"
                     },
                 )
                 
@@ -176,7 +177,8 @@ async def upload_media(
                                         "user_id": str(current_user.id),
                                         "album_id": str(album_id),
                                         "frame_idx": result["frame_idx"],
-                                        "is_keyframe": True
+                                        "is_keyframe": True,
+                                        "collection": "video_embeddings"
                                     },
                                 )
                                 

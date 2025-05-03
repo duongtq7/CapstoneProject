@@ -253,9 +253,9 @@ export const mediaAPI = {
 
 // Search API
 export const searchAPI = {
-  searchMedia: async (query: string, limit: number = 10, translate: boolean = true) => {
+  searchMedia: async (query: string, limit: number = 10, translate: boolean = true, scoreThreshold: number = 0.1) => {
     try {
-      console.log(`Searching for media with query: "${query}", limit: ${limit}, translate: ${translate}`);
+      console.log(`Searching for media with query: "${query}", limit: ${limit}, translate: ${translate}, scoreThreshold: ${scoreThreshold}`);
       console.log('API URL being used:', API_URL);
       
       // Try a direct axios call instead of using the api instance
@@ -276,6 +276,7 @@ export const searchAPI = {
           query, 
           limit,
           translate,
+          score_threshold: scoreThreshold,
           debug: true
         },
         headers,
