@@ -29,8 +29,19 @@ from app.crud.media_metadata import (
 from app.crud.user import (
     authenticate,
     create_user,
+    delete_user,
+    get_user,
     get_user_by_email,
+    get_users,
     update_user,
+)
+from app.crud.keyframe import (
+    create_keyframe,
+    delete_keyframe,
+    get_keyframe,
+    get_keyframes_by_media,
+    update_keyframe,
+    delete_keyframes_by_media,
 )
 
 __all__ = [
@@ -61,6 +72,16 @@ __all__ = [
     # User operations
     "authenticate",
     "create_user",
+    "delete_user",
+    "get_user",
+    "get_users",
     "get_user_by_email",
     "update_user",
+    # Keyframe operations
+    "create_keyframe",
+    "delete_keyframe",
+    "get_keyframe",
+    "get_keyframes_by_media",
+    "update_keyframe",
+    "delete_keyframes_by_media",
 ]

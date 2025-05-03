@@ -89,6 +89,26 @@ class KeyFrameExtractor:
         
         cap.release()
 
+    def save_keyframes(self, video_path, keyframe_indices, output_dir="keyframes"):
+        """Extract and save keyframes from the original video."""
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        cap = cv2.VideoCapture(video_path)
+        frame_count = 0
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if frame_count in keyframe_indices:
+                output_path = os.path.join(output_dir, f"keyframe_{frame_count}.jpg")
+                cv2.imwrite(output_path, frame)
+                logger.info(f"Saved keyframe {frame_count} to {output_path}")
+            frame_count += 1
+        
+        cap.release()
+
     def detect_shot_boundaries(self, video_path, threshold=0.5, chunk_size=32):
         """Detect shot boundaries using TransNetV2, processing video in chunks."""
         frames = self.load_video(video_path)
@@ -252,7 +272,9 @@ class KeyFrameExtractor:
             # Save frames if output directory is provided
             if output_directory:
                 boundary_dir = os.path.join(output_directory, "boundary_frames")
+                keyframes_dir = os.path.join(output_directory, "keyframes")
                 self.save_boundary_frames(video_path, shot_boundaries, boundary_dir)
+                self.save_keyframes(video_path, keyframe_indices, keyframes_dir)
 
             # Create and validate response 
             response = KeyFrameExtractionResponse(

@@ -1,4 +1,5 @@
-from typing import Any
+from typing import Any, List
+import uuid
 
 from sqlmodel import Session, select
 
@@ -43,3 +44,20 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     if not verify_password(password, db_user.hashed_password):
         return None
     return db_user
+
+
+def get_user(*, session: Session, user_id: uuid.UUID) -> User | None:
+    """Get a user by ID."""
+    return session.get(User, user_id)
+
+
+def get_users(*, session: Session, skip: int = 0, limit: int = 100) -> List[User]:
+    """Get all users with pagination."""
+    statement = select(User).offset(skip).limit(limit)
+    return session.exec(statement).all()
+
+
+def delete_user(*, session: Session, db_obj: User) -> None:
+    """Delete a user."""
+    session.delete(db_obj)
+    session.commit()

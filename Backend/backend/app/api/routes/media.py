@@ -9,8 +9,10 @@ from app.api.deps import get_current_user, get_db
 from app.core.object_storage import storage_manager
 from app.core.vector_db import qdrant_manager
 from app.core.clip_client import clip_client
+from app.core.keyframe_client import keyframe_client
 from app.models.media import MediaCreate, MediaResponse
 from app.models.media_embedding import MediaEmbeddingCreate
+from app.models.keyframe import KeyframeCreate
 from app.models.user import User
 
 router = APIRouter()
@@ -116,6 +118,85 @@ async def upload_media(
         except Exception as e:
             # Log error but continue with upload - don't fail the whole operation
             logger.error(f"Error during embedding generation: {str(e)}")
+    
+    # Process videos for keyframe extraction
+    elif media_type == "video":
+        try:
+            # Generate a presigned URL for the keyframe extractor to access
+            presigned_url = storage_manager.generate_presigned_url(object_key)
+            
+            # Ensure the URL is accessible from outside the Docker network
+            # Use external URL format that's accessible to the remote keyframe service
+            ext_url = presigned_url
+            
+            # Call the keyframe extractor service
+            keyframe_result = await keyframe_client.extract_keyframes(ext_url)
+            
+            if keyframe_result and keyframe_result["status"] == "success" and keyframe_result.get("keyframes"):
+                keyframe_indices = keyframe_result["keyframes"]
+                logger.info(f"Extracted {len(keyframe_indices)} keyframes from video {media.id}")
+                
+                # Process each keyframe - extract and save to S3
+                keyframe_results = storage_manager.process_keyframes_from_video(
+                    user_id=current_user.id,
+                    album_id=album_id,
+                    video_key=object_key,
+                    keyframe_indices=keyframe_indices
+                )
+                
+                # For each successfully saved keyframe
+                for result in keyframe_results:
+                    if result["success"]:
+                        # Create keyframe record in database
+                        keyframe_in = KeyframeCreate(
+                            media_id=media.id,
+                            frame_idx=result["frame_idx"]
+                        )
+                        keyframe = crud.create_keyframe(db=db, obj_in=keyframe_in)
+                        
+                        # Generate embedding for keyframe
+                        try:
+                            embedding_vector = await clip_client.get_image_embedding(
+                                result["url"], 
+                                result["object_key"]
+                            )
+                            
+                            if embedding_vector:
+                                # Generate a unique ID for the embedding in Qdrant
+                                embedding_id = str(uuid.uuid4())
+                                
+                                # Store the embedding in Qdrant
+                                qdrant_success = qdrant_manager.create_point(
+                                    collection_name="video_embeddings",
+                                    vector=embedding_vector,
+                                    point_id=embedding_id,
+                                    payload={
+                                        "media_id": str(media.id),
+                                        "keyframe_id": str(keyframe.id),
+                                        "user_id": str(current_user.id),
+                                        "album_id": str(album_id),
+                                        "frame_idx": result["frame_idx"],
+                                        "is_keyframe": True
+                                    },
+                                )
+                                
+                                if qdrant_success:
+                                    # Create a record in the database
+                                    embedding_in = MediaEmbeddingCreate(
+                                        media_id=media.id,
+                                        embedding_id=uuid.UUID(embedding_id),
+                                    )
+                                    crud.create_media_embedding(db=db, obj_in=embedding_in)
+                                    
+                                    # Delete the keyframe image from S3 as we no longer need it
+                                    # We can do this since we have the embedding stored
+                                    storage_manager.delete_file(result["object_key"])
+                        except Exception as embedding_e:
+                            logger.error(f"Error generating embedding for keyframe: {str(embedding_e)}")
+            else:
+                logger.error(f"Keyframe extraction failed for video {media.id}: {keyframe_result.get('message', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Error during keyframe extraction: {str(e)}")
 
     # TODO: Extract metadata from file and create MediaMetadata
 
@@ -205,6 +286,12 @@ async def read_media(
     media_response = MediaResponse.model_validate(media)
     media_response.presigned_url = storage_manager.generate_presigned_url(media.url)
 
+    # Get metadata if available
+    metadata = crud.get_media_metadata(db=db, media_id=media_id)
+    if metadata:
+        # Add any metadata fields to the response if needed
+        pass
+
     return media_response
 
 
@@ -237,12 +324,19 @@ def delete_media(
     if media.url:
         storage_manager.delete_file(media.url)
 
+    # Delete keyframes if this is a video
+    if media.media_type == "video":
+        # Delete keyframe records from database
+        crud.delete_keyframes_by_media(db=db, media_id=media_id)
+
     # Delete any embeddings from Qdrant
     embeddings = crud.get_media_embeddings_by_media(db=db, media_id=media_id)
     for embedding in embeddings:
-        # Delete from Qdrant
+        # Determine the collection name based on media type
+        collection_name = "image_embeddings" if media.media_type == "photo" else "video_embeddings"
+        
         qdrant_manager.delete_point(
-            collection_name="image_embeddings" if media.media_type == "photo" else "video_embeddings",
+            collection_name=collection_name,
             point_id=str(embedding.embedding_id),
         )
         # Delete from database

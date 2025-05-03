@@ -132,6 +132,7 @@ volumes:
       type: none
       device: ./data/qdrant_data
       o: bind
+      
 # networks:
   # traefik-public:
   #   # Allow setting it to false for testing

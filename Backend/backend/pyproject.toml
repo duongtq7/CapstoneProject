@@ -33,6 +33,7 @@ dependencies = [
     "ipykernel>=6.29.5",
     "pillow>=11.2.1",
     "py-vncorenlp>=0.1.4",
+    "opencv-python>=4.8.0",
 ]
 
 [tool.uv]

@@ -9,6 +9,9 @@ from qdrant_client.http.models import (
 )
 
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class QdrantManager:
@@ -35,18 +38,29 @@ class QdrantManager:
 
     def _initialize_collections(self) -> None:
         """Initialize all required Qdrant collections if they don't exist."""
-        existing_collections = self.client.get_collections().collections
-        existing_collection_names = [c.name for c in existing_collections]
+        try:
+            existing_collections = self.client.get_collections().collections
+            existing_collection_names = [c.name for c in existing_collections]
+            
+            logger.info(f"Existing collections: {existing_collection_names}")
 
-        for collection_name, params in self._collections.items():
-            if collection_name not in existing_collection_names:
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    vectors_config=VectorParams(
-                        size=params["vector_size"],
-                        distance=params["distance"],
-                    ),
-                )
+            for collection_name, params in self._collections.items():
+                if collection_name not in existing_collection_names:
+                    logger.info(f"Creating collection: {collection_name}")
+                    self.client.create_collection(
+                        collection_name=collection_name,
+                        vectors_config=VectorParams(
+                            size=params["vector_size"],
+                            distance=params["distance"],
+                        ),
+                    )
+                    logger.info(f"Successfully created collection: {collection_name}")
+                else:
+                    logger.info(f"Collection already exists: {collection_name}")
+                    
+        except Exception as e:
+            logger.error(f"Error initializing collections: {str(e)}")
+            logger.error("Collection initialization failed, some operations may fail")
 
     def check_collection_exists(self, collection_name: str) -> bool:
         """Check if a collection exists."""
@@ -67,13 +81,36 @@ class QdrantManager:
     ) -> bool:
         """Create a point in the specified collection."""
         try:
+            # Check if collection exists
+            if not self.check_collection_exists(collection_name):
+                logger.error(f"Collection '{collection_name}' does not exist")
+                
+                # Try to create the collection if it's in our defined collections
+                if collection_name in self._collections:
+                    logger.info(f"Attempting to create missing collection: {collection_name}")
+                    params = self._collections[collection_name]
+                    
+                    self.client.create_collection(
+                        collection_name=collection_name,
+                        vectors_config=VectorParams(
+                            size=params["vector_size"],
+                            distance=params["distance"],
+                        ),
+                    )
+                    logger.info(f"Successfully created collection: {collection_name}")
+                else:
+                    logger.error(f"Cannot create unknown collection: {collection_name}")
+                    return False
+            
+            # Now create the point
             self.client.upsert(
                 collection_name=collection_name,
                 points=[PointStruct(id=point_id, vector=vector, payload=payload or {})],
             )
+            logger.info(f"Successfully created point {point_id} in collection {collection_name}")
             return True
         except Exception as e:
-            print(f"Error creating point: {e}")
+            logger.error(f"Error creating point: {e}")
             return False
 
     def search_similar(

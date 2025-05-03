@@ -2,7 +2,8 @@ import io
 import os
 import uuid
 import logging
-from typing import BinaryIO
+from typing import BinaryIO, Optional, List, Dict, Any
+import cv2
 
 import boto3
 from botocore.exceptions import ClientError
@@ -179,6 +180,158 @@ class ObjectStorageManager:
         except Exception as e:
             print(f"Error generating presigned URL: {e}")
             return ""
+
+    def save_keyframe(
+        self,
+        user_id: uuid.UUID,
+        album_id: uuid.UUID, 
+        video_key: str, 
+        frame_idx: int,
+        frame_data: bytes
+    ) -> tuple[bool, str, str]:
+        """
+        Save a keyframe extracted from a video to object storage.
+        
+        Args:
+            user_id: User ID
+            album_id: Album ID
+            video_key: Object key of the source video
+            frame_idx: Frame index
+            frame_data: Binary data of the frame image
+            
+        Returns:
+            Tuple containing (success_status, url, object_key)
+        """
+        try:
+            # Create an object key for the keyframe based on the video key
+            video_name = os.path.splitext(os.path.basename(video_key))[0]
+            
+            # Format: users/{user_id}/albums/{album_id}/keyframes/{video_name}/frame_{idx}.jpg
+            object_key = f"users/{user_id}/albums/{album_id}/keyframes/{video_name}/frame_{frame_idx}.jpg"
+            
+            # Upload the keyframe
+            self.s3_client.upload_fileobj(
+                io.BytesIO(frame_data),
+                self.bucket_name,
+                object_key,
+                ExtraArgs={"ContentType": "image/jpeg"}
+            )
+            
+            # Generate URL
+            url = self.generate_presigned_url(object_key)
+            
+            return True, url, object_key
+        except Exception as e:
+            logger.error(f"Error saving keyframe: {str(e)}")
+            return False, str(e), ""
+            
+    def extract_frame_from_video(
+        self, 
+        video_data: bytes, 
+        frame_idx: int
+    ) -> Optional[bytes]:
+        """
+        Extract a specific frame from video binary data.
+        
+        Args:
+            video_data: Binary data of the video
+            frame_idx: Index of the frame to extract
+            
+        Returns:
+            Binary data of the extracted frame as JPEG, or None if extraction fails
+        """
+        try:
+            # Save the video data to a temporary file
+            temp_video_path = f"/tmp/{uuid.uuid4()}.mp4"
+            with open(temp_video_path, "wb") as f:
+                f.write(video_data)
+            
+            # Open the video
+            cap = cv2.VideoCapture(temp_video_path)
+            
+            # Set the position to the desired frame
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            
+            # Read the frame
+            ret, frame = cap.read()
+            if not ret:
+                logger.error(f"Failed to read frame {frame_idx} from video")
+                cap.release()
+                os.remove(temp_video_path)
+                return None
+                
+            # Convert to JPEG
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_data = buffer.tobytes()
+            
+            # Clean up
+            cap.release()
+            os.remove(temp_video_path)
+            
+            return frame_data
+        except Exception as e:
+            logger.error(f"Error extracting frame from video: {str(e)}")
+            return None
+            
+    def process_keyframes_from_video(
+        self,
+        user_id: uuid.UUID,
+        album_id: uuid.UUID,
+        video_key: str,
+        keyframe_indices: List[int]
+    ) -> List[Dict[str, Any]]:
+        """
+        Process and save keyframes from a video.
+        
+        Args:
+            user_id: User ID
+            album_id: Album ID
+            video_key: Object key of the source video
+            keyframe_indices: List of frame indices to extract
+            
+        Returns:
+            List of dictionaries with keyframe details (success, url, object_key, frame_idx)
+        """
+        results = []
+        
+        # Get video data
+        video_data = self.get_file_data(video_key)
+        if not video_data:
+            logger.error(f"Failed to get video data for {video_key}")
+            return results
+            
+        for frame_idx in keyframe_indices:
+            # Extract the frame
+            frame_data = self.extract_frame_from_video(video_data, frame_idx)
+            if not frame_data:
+                logger.error(f"Failed to extract frame {frame_idx} from video {video_key}")
+                results.append({
+                    "success": False,
+                    "url": "",
+                    "object_key": "",
+                    "frame_idx": frame_idx,
+                    "error": "Failed to extract frame"
+                })
+                continue
+                
+            # Save the frame to S3
+            success, url, object_key = self.save_keyframe(
+                user_id=user_id,
+                album_id=album_id,
+                video_key=video_key,
+                frame_idx=frame_idx,
+                frame_data=frame_data
+            )
+            
+            results.append({
+                "success": success,
+                "url": url,
+                "object_key": object_key,
+                "frame_idx": frame_idx,
+                "error": "" if success else "Failed to save keyframe"
+            })
+            
+        return results
 
 
 # Singleton instance
